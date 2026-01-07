@@ -27,15 +27,30 @@ const allowedOrigins = [
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
+// Add any Render URLs dynamically
+const renderUrlPattern = /^https:\/\/.*\.onrender\.com$/;
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
+    // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
+    }
+    // Allow any Render URL (for testing)
+    else if (renderUrlPattern.test(origin)) {
+      console.log('✅ Allowing Render origin:', origin);
+      callback(null, true);
+    }
+    // Allow Vercel preview deployments
+    else if (origin.includes('vercel.app')) {
+      console.log('✅ Allowing Vercel origin:', origin);
+      callback(null, true);
+    }
+    else {
+      console.log('❌ CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
