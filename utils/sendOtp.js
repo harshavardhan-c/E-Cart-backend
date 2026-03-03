@@ -8,6 +8,16 @@ import { transporter } from '../config/nodemailerClient.js';
  */
 export const sendOtp = async (email, otp) => {
   try {
+    // Validate inputs
+    if (!email || !otp) {
+      throw new Error('Email and OTP are required');
+    }
+
+    // Validate SMTP configuration
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      throw new Error('SMTP configuration is incomplete. Check .env file');
+    }
+
     const mailOptions = {
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: email,
@@ -72,7 +82,7 @@ export const sendOtp = async (email, otp) => {
               <p>Hello,</p>
               <p>Your One-Time Password (OTP) for account verification is:</p>
               <div class="otp-code">${otp}</div>
-              <p>This OTP is valid for <strong>2 minutes</strong> only.</p>
+              <p>This OTP is valid for <strong>10 minutes</strong> only.</p>
               <p class="warning">⚠️ DO NOT share this code with anyone. Our team will never ask for your OTP.</p>
               <p>If you didn't request this OTP, please ignore this email.</p>
             </div>
@@ -86,9 +96,12 @@ export const sendOtp = async (email, otp) => {
       `
     };
 
+    console.log(`📧 Attempting to send OTP to ${email}...`);
     const info = await transporter.sendMail(mailOptions);
 
-    console.log(`✅ OTP sent to ${email}: Message ID - ${info.messageId}`);
+    console.log(`✅ OTP sent successfully to ${email}`);
+    console.log(`   Message ID: ${info.messageId}`);
+    console.log(`   Response: ${info.response}`);
     
     return {
       success: true,
@@ -96,8 +109,27 @@ export const sendOtp = async (email, otp) => {
       email: email
     };
   } catch (error) {
-    console.error('❌ Error sending OTP:', error.message);
-    throw new Error(`Failed to send OTP: ${error.message}`);
+    console.error('❌ Error sending OTP email:');
+    console.error('   Error type:', error.name);
+    console.error('   Error message:', error.message);
+    console.error('   Error code:', error.code);
+    
+    // Provide specific error messages
+    let errorMessage = 'Failed to send OTP';
+    
+    if (error.code === 'EAUTH') {
+      errorMessage = 'SMTP authentication failed. Please check your email credentials.';
+      console.error('   💡 Fix: Generate new Gmail App Password at https://myaccount.google.com/apppasswords');
+    } else if (error.code === 'ESOCKET' || error.code === 'ETIMEDOUT') {
+      errorMessage = 'Network error. Unable to connect to email server.';
+      console.error('   💡 Fix: Check your internet connection and firewall settings');
+    } else if (error.code === 'EENVELOPE') {
+      errorMessage = 'Invalid email address format.';
+    } else if (error.message.includes('Missing credentials')) {
+      errorMessage = 'SMTP credentials not configured. Check .env file.';
+    }
+    
+    throw new Error(errorMessage);
   }
 };
 

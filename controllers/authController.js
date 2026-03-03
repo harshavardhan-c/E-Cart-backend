@@ -23,7 +23,7 @@ export const sendOtpToEmail = asyncHandler(async (req, res) => {
   try {
     // Generate OTP
     const otp = generateOtp();
-    const expiryTime = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const expiryTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Check if user exists to determine if it's login or signup
     const existingUser = await UsersModel.getUserByEmail(email);
@@ -35,19 +35,26 @@ export const sendOtpToEmail = asyncHandler(async (req, res) => {
     // Send OTP via Email
     await sendOtp(email, otp);
 
+    console.log(`✅ OTP sent successfully to ${email}`);
+
     res.status(200).json({
       status: 'success',
       message: 'OTP sent successfully to your email',
       data: {
         email,
-        expiresIn: '24 hours'
+        expiresIn: '10 minutes'
       }
     });
   } catch (error) {
-    console.error('❌ Error sending OTP:', error.message);
+    console.error('❌ Error sending OTP:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack
+    });
     res.status(500).json({
       status: 'error',
-      message: 'Failed to send OTP. Please try again.'
+      message: 'Failed to send OTP. Please try again.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

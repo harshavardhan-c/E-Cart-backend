@@ -8,7 +8,10 @@
     "start": "node server.js",
     "build": "echo 'No build step required'",
     "dev": "nodemon server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:smtp": "node test-smtp.js",
+    "test:otp": "node diagnose-otp.js",
+    "diagnose": "node diagnose-otp.js"
   },
   "keywords": [
     "ecommerce",
