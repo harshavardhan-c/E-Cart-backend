@@ -23,6 +23,7 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
+  'https://e-cart-frontend-beta.vercel.app',
   'https://e-cart-frontend-2c1j91azb-harshavardhan-chamalas-projects.vercel.app',
   process.env.FRONTEND_URL
 ].filter(Boolean);
@@ -32,11 +33,14 @@ const renderUrlPattern = /^https:\/\/.*\.onrender\.com$/;
 
 app.use(cors({
   origin: function (origin, callback) {
+    console.log('🌐 CORS check for origin:', origin);
+    
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
     // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('✅ Allowing whitelisted origin:', origin);
       callback(null, true);
     }
     // Allow any Render URL (for testing)
