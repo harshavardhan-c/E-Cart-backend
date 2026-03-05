@@ -465,6 +465,41 @@ export const testOtp = asyncHandler(async (req, res) => {
 });
 
 
+/**
+ * Test SMTP connection
+ */
+export const testSmtp = asyncHandler(async (req, res) => {
+  try {
+    const { transporter } = await import('../config/nodemailerClient.js');
+    
+    // Test SMTP connection
+    const isConnected = await transporter.verify();
+    
+    if (isConnected) {
+      res.status(200).json({
+        status: 'success',
+        message: 'SMTP connection successful',
+        data: {
+          host: process.env.SMTP_HOST,
+          port: process.env.SMTP_PORT,
+          user: process.env.SMTP_USER ? 'SET' : 'NOT SET'
+        }
+      });
+    } else {
+      res.status(500).json({
+        status: 'error',
+        message: 'SMTP connection failed'
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'SMTP test failed',
+      error: error.message,
+      code: error.code
+    });
+  }
+});
 export default {
   sendOtpToEmail,
   verifyOtpAndLogin,
@@ -472,5 +507,6 @@ export default {
   logout,
   getProfile,
   updateProfile,
-  testOtp
+  testOtp,
+  testSmtp
 };
