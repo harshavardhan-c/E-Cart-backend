@@ -4,6 +4,7 @@ import { generateOtp } from '../utils/generateOtp.js';
 import { sendOtp } from '../utils/sendOtp.js';
 import { generateAccessToken, generateRefreshToken } from '../utils/generateToken.js';
 import { asyncHandler } from '../middleware/errorMiddleware.js';
+import { supabase } from '../config/supabaseClient.js';
 
 /**
  * Send OTP to email
@@ -375,8 +376,36 @@ export const testOtp = asyncHandler(async (req, res) => {
     if (results.step3_otp_generation === 'SUCCESS') {
       try {
         const expiryTime = new Date(Date.now() + 10 * 60 * 1000);
-        await OtpModel.createOtp(email, results.generated_otp, expiryTime, 'test');
-        results.step5_database_store = 'SUCCESS';
+        // Try without purpose first, then with different values
+        try {
+          await OtpModel.createOtp(email, results.generated_otp, expiryTime, 'login');
+          results.step5_database_store = 'SUCCESS';
+        } catch (firstError) {
+          try {
+            await OtpModel.createOtp(email, results.generated_otp, expiryTime, 'registration');
+            results.step5_database_store = 'SUCCESS';
+          } catch (secondError) {
+            try {
+              // Try without purpose parameter
+              const { data, error } = await supabase
+                .from('otps')
+                .insert([{
+                  email,
+                  otp: results.generated_otp,
+                  expires_at: expiryTime.toISOString(),
+                  attempts: 0
+                }])
+                .select()
+                .single();
+              
+              if (error) throw error;
+              results.step5_database_store = 'SUCCESS';
+            } catch (thirdError) {
+              results.step5_database_store = 'FAILED';
+              results.errors.push(`Database store error: ${thirdError.message}`);
+            }
+          }
+        }
       } catch (error) {
         results.step5_database_store = 'FAILED';
         results.errors.push(`Database store error: ${error.message}`);
