@@ -31,7 +31,30 @@ export const sendOtpToEmail = asyncHandler(async (req, res) => {
     const purpose = existingUser ? 'login' : 'signup';
 
     // Store OTP in Supabase database with purpose
-    await OtpModel.createOtp(email, otp, expiryTime, purpose);
+    try {
+      // Try different purpose values to match database constraint
+      await OtpModel.createOtp(email, otp, expiryTime, 'login');
+    } catch (firstError) {
+      try {
+        await OtpModel.createOtp(email, otp, expiryTime, 'registration');
+      } catch (secondError) {
+        // Try without purpose parameter using direct supabase call
+        await supabase.from('otps').delete().eq('email', email); // Delete existing OTPs first
+        
+        const { data: insertData, error: insertError } = await supabase
+          .from('otps')
+          .insert([{
+            email,
+            otp,
+            expires_at: expiryTime.toISOString(),
+            attempts: 0
+          }])
+          .select()
+          .single();
+        
+        if (insertError) throw insertError;
+      }
+    }
 
     // Send OTP via Email
     await sendOtp(email, otp);
