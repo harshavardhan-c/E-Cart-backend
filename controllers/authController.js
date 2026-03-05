@@ -307,12 +307,118 @@ export const adminLogin = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Test OTP functionality step by step
+ */
+export const testOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Email is required for testing'
+    });
+  }
+
+  const results = {
+    step1_validation: 'PENDING',
+    step2_env_check: 'PENDING',
+    step3_otp_generation: 'PENDING',
+    step4_user_lookup: 'PENDING',
+    step5_database_store: 'PENDING',
+    step6_email_send: 'PENDING',
+    errors: []
+  };
+
+  try {
+    // Step 1: Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (emailRegex.test(email)) {
+      results.step1_validation = 'SUCCESS';
+    } else {
+      results.step1_validation = 'FAILED';
+      results.errors.push('Invalid email format');
+    }
+
+    // Step 2: Environment check
+    const requiredEnvs = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'];
+    const missingEnvs = requiredEnvs.filter(env => !process.env[env]);
+    
+    if (missingEnvs.length === 0) {
+      results.step2_env_check = 'SUCCESS';
+    } else {
+      results.step2_env_check = 'FAILED';
+      results.errors.push(`Missing env vars: ${missingEnvs.join(', ')}`);
+    }
+
+    // Step 3: OTP generation
+    try {
+      const otp = generateOtp();
+      results.step3_otp_generation = 'SUCCESS';
+      results.generated_otp = otp;
+    } catch (error) {
+      results.step3_otp_generation = 'FAILED';
+      results.errors.push(`OTP generation error: ${error.message}`);
+    }
+
+    // Step 4: User lookup
+    try {
+      const existingUser = await UsersModel.getUserByEmail(email);
+      results.step4_user_lookup = 'SUCCESS';
+      results.user_exists = !!existingUser;
+    } catch (error) {
+      results.step4_user_lookup = 'FAILED';
+      results.errors.push(`User lookup error: ${error.message}`);
+    }
+
+    // Step 5: Database store (if previous steps succeeded)
+    if (results.step3_otp_generation === 'SUCCESS') {
+      try {
+        const expiryTime = new Date(Date.now() + 10 * 60 * 1000);
+        await OtpModel.createOtp(email, results.generated_otp, expiryTime, 'test');
+        results.step5_database_store = 'SUCCESS';
+      } catch (error) {
+        results.step5_database_store = 'FAILED';
+        results.errors.push(`Database store error: ${error.message}`);
+      }
+    }
+
+    // Step 6: Email send (if all previous steps succeeded)
+    if (results.step5_database_store === 'SUCCESS') {
+      try {
+        await sendOtp(email, results.generated_otp);
+        results.step6_email_send = 'SUCCESS';
+      } catch (error) {
+        results.step6_email_send = 'FAILED';
+        results.errors.push(`Email send error: ${error.message}`);
+      }
+    }
+
+    const overallStatus = results.errors.length === 0 ? 'SUCCESS' : 'PARTIAL_FAILURE';
+
+    res.status(200).json({
+      status: overallStatus,
+      message: 'OTP test completed',
+      data: results
+    });
+
+  } catch (error) {
+    results.errors.push(`Unexpected error: ${error.message}`);
+    res.status(500).json({
+      status: 'error',
+      message: 'OTP test failed',
+      data: results
+    });
+  }
+});
+
+
 export default {
   sendOtpToEmail,
   verifyOtpAndLogin,
   refreshToken,
   logout,
   getProfile,
-  updateProfile
+  updateProfile,
+  testOtp
 };
-

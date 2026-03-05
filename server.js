@@ -87,6 +87,48 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Simple test endpoint to check environment and connections
+app.get('/api/test', async (req, res) => {
+  try {
+    const { supabase } = await import('./config/supabaseClient.js');
+    
+    // Test environment variables
+    const envCheck = {
+      NODE_ENV: process.env.NODE_ENV,
+      SUPABASE_URL: process.env.SUPABASE_URL ? 'SET' : 'NOT SET',
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET',
+      SMTP_HOST: process.env.SMTP_HOST || 'NOT SET',
+      SMTP_USER: process.env.SMTP_USER ? 'SET' : 'NOT SET',
+      SMTP_PASS: process.env.SMTP_PASS ? 'SET' : 'NOT SET'
+    };
+
+    // Test Supabase connection
+    let supabaseTest = 'FAILED';
+    try {
+      const { data, error } = await supabase.from('users').select('count').limit(1);
+      supabaseTest = error ? `ERROR: ${error.message}` : 'SUCCESS';
+    } catch (err) {
+      supabaseTest = `ERROR: ${err.message}`;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Diagnostic test results',
+      data: {
+        environment: envCheck,
+        supabaseConnection: supabaseTest,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Diagnostic test failed',
+      error: error.message
+    });
+  }
+});
+
 // Error handling middleware
 app.use(errorHandler);
 

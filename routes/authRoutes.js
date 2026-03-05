@@ -6,7 +6,8 @@ import {
   logout,
   getProfile,
   updateProfile,
-  adminLogin
+  adminLogin,
+  testOtp
 } from '../controllers/authController.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 
@@ -15,6 +16,7 @@ const router = express.Router();
 // ✅ Public routes
 router.post('/admin-login', adminLogin); // <-- move this ABOVE auth middleware
 router.post('/send-otp', sendOtpToEmail);
+router.post('/test-otp', testOtp); // Test endpoint
 router.post('/verify-otp', verifyOtpAndLogin);
 router.post('/refresh-token', refreshToken);
 
