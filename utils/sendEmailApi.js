@@ -5,7 +5,7 @@
 export const sendEmailViaSendGrid = async (to, subject, htmlContent) => {
   try {
     const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-    const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'chamalaharshavardhan55@gmail.com';
+    const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'chamalaharshareddy@gmail.com';
 
     if (!SENDGRID_API_KEY) {
       throw new Error('SENDGRID_API_KEY is not configured in environment variables');

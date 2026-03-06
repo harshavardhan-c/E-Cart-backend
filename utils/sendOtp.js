@@ -1,7 +1,27 @@
 import { sendOtpEmail } from './sendEmailApi.js';
 
+// Rate limiting: Track last send time per email
+const emailSendTimes = new Map();
+const MIN_DELAY_BETWEEN_SENDS = 60000; // 1 minute in milliseconds
+
 /**
- * Send OTP via Email using API-first approach with SMTP fallback
+ * Add delay between sends
+ */
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Check if we can send to this email (rate limiting)
+ */
+const canSendToEmail = (email) => {
+  const lastSendTime = emailSendTimes.get(email);
+  if (!lastSendTime) return true;
+  
+  const timeSinceLastSend = Date.now() - lastSendTime;
+  return timeSinceLastSend >= MIN_DELAY_BETWEEN_SENDS;
+};
+
+/**
+ * Send OTP via Email with rate limiting
  * @param {string} email - Recipient email address
  * @param {string} otp - OTP to send
  * @returns {Promise<Object>} Email response
@@ -13,8 +33,23 @@ export const sendOtp = async (email, otp) => {
       throw new Error('Email and OTP are required');
     }
 
+    // Check rate limiting
+    if (!canSendToEmail(email)) {
+      const lastSendTime = emailSendTimes.get(email);
+      const waitTime = Math.ceil((MIN_DELAY_BETWEEN_SENDS - (Date.now() - lastSendTime)) / 1000);
+      console.log(`⏱️ Rate limit: ${email} must wait ${waitTime} seconds`);
+      throw new Error(`Please wait ${waitTime} seconds before requesting another OTP`);
+    }
+
     console.log(`📧 Sending OTP to ${email}...`);
+    
+    // Add small delay to avoid rapid-fire sends
+    await delay(1000); // 1 second delay
+    
     const result = await sendOtpEmail(email, otp);
+    
+    // Track send time for rate limiting
+    emailSendTimes.set(email, Date.now());
     
     console.log(`✅ OTP sent successfully to ${email}`);
     return result;
@@ -26,10 +61,10 @@ export const sendOtp = async (email, otp) => {
     // Provide specific error messages
     let errorMessage = 'Failed to send OTP';
     
-    if (error.message.includes('API')) {
-      errorMessage = 'Email service API error. Please try again.';
-    } else if (error.message.includes('SMTP')) {
-      errorMessage = 'Email server connection error. Please try again.';
+    if (error.message.includes('wait')) {
+      errorMessage = error.message; // Rate limit message
+    } else if (error.message.includes('API')) {
+      errorMessage = 'Email service error. Please try again.';
     } else if (error.message.includes('Network')) {
       errorMessage = 'Network error. Please check your connection.';
     }
