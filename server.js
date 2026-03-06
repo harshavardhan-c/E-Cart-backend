@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
-  'https://e-cart-frontend-beta.vercel.app/',
+  'https://e-cart-frontend-beta.vercel.app',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
