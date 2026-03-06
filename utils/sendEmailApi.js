@@ -1,15 +1,17 @@
 /**
- * Send email using SendGrid API (HTTP-based, more reliable than SMTP)
- * This works better in production environments like Render
+ * Send email using SendGrid API (HTTP-based)
+ * This is the ONLY method used - no SMTP fallback
  */
 export const sendEmailViaSendGrid = async (to, subject, htmlContent) => {
   try {
     const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-    const FROM_EMAIL = process.env.SMTP_FROM || process.env.SMTP_USER;
+    const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'chamalaharshavardhan55@gmail.com';
 
     if (!SENDGRID_API_KEY) {
-      throw new Error('SENDGRID_API_KEY not configured');
+      throw new Error('SENDGRID_API_KEY is not configured in environment variables');
     }
+
+    console.log(`📧 Sending email via SendGrid API to ${to}...`);
 
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
@@ -32,6 +34,8 @@ export const sendEmailViaSendGrid = async (to, subject, htmlContent) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`❌ SendGrid API error: ${response.status}`);
+      console.error(`   Response: ${errorText}`);
       throw new Error(`SendGrid API error: ${response.status} - ${errorText}`);
     }
 
@@ -48,8 +52,7 @@ export const sendEmailViaSendGrid = async (to, subject, htmlContent) => {
 };
 
 /**
- * Send OTP email with fallback mechanism
- * Tries SendGrid API first, falls back to SMTP if needed
+ * Send OTP email using SendGrid API ONLY
  */
 export const sendOtpEmail = async (email, otp) => {
   const subject = 'Your Lalitha Mega Mall OTP';
@@ -126,40 +129,7 @@ export const sendOtpEmail = async (email, otp) => {
     </html>
   `;
 
-  // Try SendGrid API first (more reliable in production)
-  if (process.env.SENDGRID_API_KEY) {
-    try {
-      console.log('📧 Attempting to send via SendGrid API...');
-      return await sendEmailViaSendGrid(email, subject, htmlContent);
-    } catch (apiError) {
-      console.warn('⚠️ SendGrid API failed, falling back to SMTP:', apiError.message);
-    }
-  }
-
-  // Fallback to SMTP
-  try {
-    console.log('📧 Attempting to send via SMTP...');
-    const { transporter } = await import('../config/nodemailerClient.js');
-    
-    const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to: email,
-      subject: subject,
-      html: htmlContent
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    
-    console.log(`✅ OTP sent via SMTP to ${email}`);
-    return {
-      success: true,
-      messageId: info.messageId,
-      email: email
-    };
-  } catch (smtpError) {
-    console.error('❌ SMTP also failed:', smtpError.message);
-    throw new Error('Failed to send email via both API and SMTP');
-  }
+  return await sendEmailViaSendGrid(email, subject, htmlContent);
 };
 
 export default sendOtpEmail;
